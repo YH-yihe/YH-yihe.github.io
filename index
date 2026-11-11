@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>登录 / 注册示例</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex;
+    align-items: center; justify-content: center;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+  }
+  .card {
+    width: 360px; background: #fff; border-radius: 16px;
+    padding: 32px; box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  }
+  h2 { margin: 0 0 20px; text-align: center; color: #333; }
+  input {
+    width: 100%; padding: 12px 14px; margin-bottom: 12px;
+    border: 1px solid #ddd; border-radius: 8px; font-size: 14px;
+    outline: none; transition: border-color .2s;
+  }
+  input:focus { border-color: #667eea; }
+  button {
+    width: 100%; padding: 12px; border: none; border-radius: 8px;
+    background: #667eea; color: #fff; font-size: 15px;
+    cursor: pointer; transition: opacity .2s;
+  }
+  button:hover { opacity: .9; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .switch { text-align: center; margin-top: 16px; font-size: 14px; color: #666; }
+  .switch a { color: #667eea; cursor: pointer; text-decoration: none; }
+  .msg { min-height: 20px; margin-top: 12px; font-size: 13px; text-align: center; }
+  .msg.error { color: #e53e3e; }
+  .msg.success { color: #38a169; }
+  .hidden { display: none; }
+  .info { font-size: 14px; color: #444; line-height: 1.9; }
+  .info span { font-weight: 600; color: #667eea; }
+</style>
+</head>
+<body>
+
+<!-- 登录 / 注册卡片 -->
+<div class="card" id="authCard">
+  <h2 id="formTitle">登录</h2>
+  <form id="authForm">
+    <input id="email" type="email" placeholder="邮箱" required />
+    <input id="username" type="text" placeholder="用户名（仅注册时填写）" class="hidden" />
+    <input id="password" type="password" placeholder="密码（至少 6 位）" required minlength="6" />
+    <button id="submitBtn" type="submit">登录</button>
+  </form>
+  <div class="switch">
+    <span id="switchText">还没有账号？</span>
+    <a id="switchLink">去注册</a>
+  </div>
+  <div class="msg" id="msg"></div>
+</div>
+
+<!-- 登录后的面板 -->
+<div class="card hidden" id="dashboard">
+  <h2>欢迎回来 🎉</h2>
+  <div class="info">
+    邮箱：<span id="userEmail"></span><br />
+    用户名：<span id="userName">加载中…</span><br />
+    用户 ID：<span id="userId" style="font-size:12px;word-break:break-all"></span>
+  </div>
+  <button style="margin-top:20px" id="logoutBtn">退出登录</button>
+</div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// ====== ① 换成你自己的（Project Settings → API） ======
+const SUPABASE_URL = 'https://你的项目ID.supabase.co';
+const SUPABASE_ANON_KEY = '你的 anon public key';
+// =====================================================
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// 获取 DOM
+const authCard   = document.getElementById('authCard');
+const dashboard  = document.getElementById('dashboard');
+const formTitle  = document.getElementById('formTitle');
+const authForm   = document.getElementById('authForm');
+const emailInput = document.getElementById('email');
+const usernameInput = document.getElementById('username');
+const passwordInput = document.getElementById('password');
+const submitBtn  = document.getElementById('submitBtn');
+const switchLink = document.getElementById('switchLink');
+const switchText = document.getElementById('switchText');
+const msgEl      = document.getElementById('msg');
+const logoutBtn  = document.getElementById('logoutBtn');
+
+let isLoginMode = true;
+
+// ---- 界面切换 ----
+function setMode(login) {
+  isLoginMode = login;
+  formTitle.textContent = login ? '登录' : '注册';
+  submitBtn.textContent = login ? '登录' : '注册';
+  switchText.textContent = login ? '还没有账号？' : '已有账号？';
+  switchLink.textContent = login ? '去注册' : '去登录';
+  usernameInput.classList.toggle('hidden', login);
+  showMsg('', '');
+}
+
+switchLink.addEventListener('click', () => setMode(!isLoginMode));
+
+function showMsg(text, type) {
+  msgEl.textContent = text;
+  msgEl.className = 'msg ' + (type || '');
+}
+
+function setLoading(loading) {
+  submitBtn.disabled = loading;
+  submitBtn.textContent = loading ? '处理中…' : (isLoginMode ? '登录' : '注册');
+}
+
+// ---- 表单提交：登录 or 注册 ----
+authForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  showMsg('', '');
+  setLoading(true);
+
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  const username = usernameInput.value.trim();
+
+  try {
+    if (isLoginMode) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } else {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { username: username || email.split('@')[0] } }
+      });
+      if (error) throw error;
+
+      // 如果开启了邮箱确认，signUp 不会直接返回 session
+      if (!data.session) {
+        showMsg('注册成功！请到邮箱点击确认链接后再登录。', 'success');
+        setMode(true);
+        return;
+      }
+    }
+    // 登录成功由 onAuthStateChange 统一处理界面切换
+  } catch (err) {
+    showMsg(err.message || '出错了，请重试', 'error');
+  } finally {
+    setLoading(false);
+  }
+});
+
+// ---- 退出登录 ----
+logoutBtn.addEventListener('click', async () => {
+  await supabase.auth.signOut();
+});
+
+// ---- 登录后：从 profiles 表读取用户名（演示 RLS + 数据库查询）----
+async function loadProfile(user) {
+  document.getElementById('userEmail').textContent = user.email;
+  document.getElementById('userId').textContent = user.id;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('id', user.id)
+    .single();
+
+  document.getElementById('userName').textContent =
+    error ? '（读取失败：' + error.message + '）'
+          : (data?.username || '（未设置）');
+}
+
+// ---- 统一处理登录状态变化 ----
+function renderSession(session) {
+  if (session?.user) {
+    authCard.classList.add('hidden');
+    dashboard.classList.remove('hidden');
+    passwordInput.value = '';
+    loadProfile(session.user);
+  } else {
+    dashboard.classList.add('hidden');
+    authCard.classList.remove('hidden');
+    document.getElementById('userName').textContent = '加载中…';
+  }
+}
+
+// 页面加载时检查已有会话
+supabase.auth.getSession().then(({ data }) => renderSession(data.session));
+
+// 监听后续登录/登出事件
+supabase.auth.onAuthStateChange((_event, session) => {
+  renderSession(session);
+});
+</script>
+</body>
+</html>
