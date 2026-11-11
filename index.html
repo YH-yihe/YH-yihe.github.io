@@ -1,130 +1,202 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>异合官网</title>
-    <style>
-        body {
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-        }
-        header {
-            background: linear-gradient(135deg, #ffae00, #f8e704);            
-            padding: 30px 20px;
-            text-align: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        nav {
-            background-color: #333;
-            overflow: hidden;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        nav a {
-            float: left;
-            display: block;
-            color: white;
-            text-align: center;
-            padding: 14px 16px;
-            text-decoration: none;
-            transition: background-color 0.3s;
-        }
-        nav a:hover {
-            background-color: #555;
-        }
-        .a{
-            padding: 20px;
-            border-radius: 8px;
-            background: #ffffff;
-            transition: transform 0.3s;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 20px auto;
-            padding: 0 20px;
-        }
-        section {
-            margin: 20px 0;
-            padding: 30px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-        footer {
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 20px;
-            margin-top: 40px;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>登录 / 注册示例</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex;
+    align-items: center; justify-content: center;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+  }
+  .card {
+    width: 360px; background: #fff; border-radius: 16px;
+    padding: 32px; box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  }
+  h2 { margin: 0 0 20px; text-align: center; color: #333; }
+  input {
+    width: 100%; padding: 12px 14px; margin-bottom: 12px;
+    border: 1px solid #ddd; border-radius: 8px; font-size: 14px;
+    outline: none; transition: border-color .2s;
+  }
+  input:focus { border-color: #667eea; }
+  button {
+    width: 100%; padding: 12px; border: none; border-radius: 8px;
+    background: #667eea; color: #fff; font-size: 15px;
+    cursor: pointer; transition: opacity .2s;
+  }
+  button:hover { opacity: .9; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .switch { text-align: center; margin-top: 16px; font-size: 14px; color: #666; }
+  .switch a { color: #667eea; cursor: pointer; text-decoration: none; }
+  .msg { min-height: 20px; margin-top: 12px; font-size: 13px; text-align: center; }
+  .msg.error { color: #e53e3e; }
+  .msg.success { color: #38a169; }
+  .hidden { display: none; }
+  .info { font-size: 14px; color: #444; line-height: 1.9; }
+  .info span { font-weight: 600; color: #667eea; }
+</style>
 </head>
 <body>
-    <header>
-        <h1>欢迎来到异合服务器</h1>
-    </header>
-    
-    <nav>
-        <a href="#home">首页</a>
-        <a href="#IP">我们的服务器</a>
-        <a href="#contact">联系我们</a>
-    </nav>
-    
-    <div class="container">
-        <section id="home">
-            <h2>欢迎来到异合服务器</h2>  
-            
-        </section>
-        <section id="IP">
-            <div class="a">
-                <h1>我们的服务器</h1>
-                <p>欢迎来到我们的我的世界Java服务器！在这里，我们可以探索、建造和冒险。我们的服务器提供稳定的环境，以及丰富的游戏体验。</p>
-                <p>IP:pm.rainplay.cn:39159</p>
-                <p>感兴趣可玩</p>
-            </div>
-        </section>
-        <section id="JE">
-            <div class="6">
-                <h1>服务器版本</h1>
-                <p1>JE：1.7~1.21.x</p1>
-            </div>
-        </section>
 
+<!-- 登录 / 注册卡片 -->
+<div class="card" id="authCard">
+  <h2 id="formTitle">登录</h2>
+  <form id="authForm">
+    <input id="email" type="email" placeholder="邮箱" required />
+    <input id="username" type="text" placeholder="用户名（仅注册时填写）" class="hidden" />
+    <input id="password" type="password" placeholder="密码（至少 6 位）" required minlength="6" />
+    <button id="submitBtn" type="submit">登录</button>
+  </form>
+  <div class="switch">
+    <span id="switchText">还没有账号？</span>
+    <a id="switchLink">去注册</a>
+  </div>
+  <div class="msg" id="msg"></div>
+</div>
 
-        <section id="S">
-            <div class="b">
-                <h1>服务器规则!</h1>
-                <p>允许使用作弊客户端、模组、材质包!</p>
-                <p>禁止恶意破坏他人建筑或地形!</p>
-                <p>禁止使用任何形式的垃圾信息刷屏!</p>
-                <p>禁止对其他玩家进行人身攻击或骚扰!</p>
-                <p>禁止未经允许在红石电路中使用高危装置!</p>
-                <p>所有都一样，禁止崩服，否则拉黑</p>
-                <p>服务器配置不高（2H4G）勿喷</p>
-                
-                
-            </div>
+<!-- 登录后的面板 -->
+<div class="card hidden" id="dashboard">
+  <h2>欢迎回来 🎉</h2>
+  <div class="info">
+    邮箱：<span id="userEmail"></span><br />
+    用户名：<span id="userName">加载中…</span><br />
+    用户 ID：<span id="userId" style="font-size:12px;word-break:break-all"></span>
+  </div>
+  <button style="margin-top:20px" id="logoutBtn">退出登录</button>
+</div>
 
-        </section>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-        <section id="contact">
-            <h2>联系我们</h2>
-            <p>如有任何问题或建议，欢迎通过以下方式联系我们:（建议不联系）</p>
-            <p>邮箱①:3994685553@qq.com</p>
-	        <p>邮箱②:hsn13687409119@qq.com</p>
-            <p>工作时间：周六至周日 14:00-20:00</p>
-        </section>
-    </div>
-    
-    <footer>
-        <p>&copy; 2025 异合服务器. 保留所有权利.</p>
-        <p><a href="#" style="color: #aaa;">隐私政策</a> | <a href="#" style="color: #aaa;">服务条款</a></p>
-    </footer>
+// ====== ① 换成你自己的（Project Settings → API） ======
+const SUPABASE_URL = 'https://你的项目ID.supabase.co';
+const SUPABASE_ANON_KEY = '你的 anon public key';
+// =====================================================
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// 获取 DOM
+const authCard   = document.getElementById('authCard');
+const dashboard  = document.getElementById('dashboard');
+const formTitle  = document.getElementById('formTitle');
+const authForm   = document.getElementById('authForm');
+const emailInput = document.getElementById('email');
+const usernameInput = document.getElementById('username');
+const passwordInput = document.getElementById('password');
+const submitBtn  = document.getElementById('submitBtn');
+const switchLink = document.getElementById('switchLink');
+const switchText = document.getElementById('switchText');
+const msgEl      = document.getElementById('msg');
+const logoutBtn  = document.getElementById('logoutBtn');
+
+let isLoginMode = true;
+
+// ---- 界面切换 ----
+function setMode(login) {
+  isLoginMode = login;
+  formTitle.textContent = login ? '登录' : '注册';
+  submitBtn.textContent = login ? '登录' : '注册';
+  switchText.textContent = login ? '还没有账号？' : '已有账号？';
+  switchLink.textContent = login ? '去注册' : '去登录';
+  usernameInput.classList.toggle('hidden', login);
+  showMsg('', '');
+}
+
+switchLink.addEventListener('click', () => setMode(!isLoginMode));
+
+function showMsg(text, type) {
+  msgEl.textContent = text;
+  msgEl.className = 'msg ' + (type || '');
+}
+
+function setLoading(loading) {
+  submitBtn.disabled = loading;
+  submitBtn.textContent = loading ? '处理中…' : (isLoginMode ? '登录' : '注册');
+}
+
+// ---- 表单提交：登录 or 注册 ----
+authForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  showMsg('', '');
+  setLoading(true);
+
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  const username = usernameInput.value.trim();
+
+  try {
+    if (isLoginMode) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } else {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { username: username || email.split('@')[0] } }
+      });
+      if (error) throw error;
+
+      // 如果开启了邮箱确认，signUp 不会直接返回 session
+      if (!data.session) {
+        showMsg('注册成功！请到邮箱点击确认链接后再登录。', 'success');
+        setMode(true);
+        return;
+      }
+    }
+    // 登录成功由 onAuthStateChange 统一处理界面切换
+  } catch (err) {
+    showMsg(err.message || '出错了，请重试', 'error');
+  } finally {
+    setLoading(false);
+  }
+});
+
+// ---- 退出登录 ----
+logoutBtn.addEventListener('click', async () => {
+  await supabase.auth.signOut();
+});
+
+// ---- 登录后：从 profiles 表读取用户名（演示 RLS + 数据库查询）----
+async function loadProfile(user) {
+  document.getElementById('userEmail').textContent = user.email;
+  document.getElementById('userId').textContent = user.id;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('id', user.id)
+    .single();
+
+  document.getElementById('userName').textContent =
+    error ? '（读取失败：' + error.message + '）'
+          : (data?.username || '（未设置）');
+}
+
+// ---- 统一处理登录状态变化 ----
+function renderSession(session) {
+  if (session?.user) {
+    authCard.classList.add('hidden');
+    dashboard.classList.remove('hidden');
+    passwordInput.value = '';
+    loadProfile(session.user);
+  } else {
+    dashboard.classList.add('hidden');
+    authCard.classList.remove('hidden');
+    document.getElementById('userName').textContent = '加载中…';
+  }
+}
+
+// 页面加载时检查已有会话
+supabase.auth.getSession().then(({ data }) => renderSession(data.session));
+
+// 监听后续登录/登出事件
+supabase.auth.onAuthStateChange((_event, session) => {
+  renderSession(session);
+});
+</script>
 </body>
 </html>
