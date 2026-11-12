@@ -38,8 +38,12 @@
   .hidden { display: none; }
   .info { font-size: 14px; color: #444; line-height: 1.9; }
   .info span { font-weight: 600; color: #667eea; }
+  
+  /* 新增：修改密码区域的样式 */
+  .divider { margin: 20px 0; border-top: 1px solid #eee; }
+  .sub-title { font-size: 14px; color: #333; margin-bottom: 10px; font-weight: 600;}
 </style>
- <link rel="icon" href="https://cabgmnpvdbqbahubdusk.supabase.co/storage/v1/object/sign/img/128.png?token=eyJraWQiOiI1NjliOGE1Mi00ODEwLTQyMzctYTg1Yy05Njg5ZDRhNjA4OWIiLCJhbGciOiJFUzI1NiJ9.eyJ1cmwiOiJpbWcvMTI4LnBuZyIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3OTQzOTA0MTMsImV4cCI6MjEwOTc1MDQxM30.RCS3psy2bzRl8vWh_OKm0WhCvL7noGPEGJ3_SjRzwMo9lgHq_Jfb7QTn2nYqdm67Zm5_kgiWL69HKql652GhXg" type="image/x-icon">
+<link rel="icon" href="https://cabgmnpvdbqbahubdusk.supabase.co/storage/v1/object/sign/img/128.png?token=eyJraWQiOiI1NjliOGE1Mi00ODEwLTQyMzctYTg1Yy05Njg5ZDRhNjA4OWIiLCJhbGciOiJFUzI1NiJ9.eyJ1cmwiOiJpbWcvMTI4LnBuZyIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3OTQzOTA0MTMsImV4cCI6MjEwOTc1MDQxM30.RCS3psy2bzRl8vWh_OKm0WhCvL7noGPEGJ3_SjRzwMo9lgHq_Jfb7QTn2nYqdm67Zm5_kgiWL69HKql652GhXg" type="image/x-icon">
 </head>
 <body>
 
@@ -47,7 +51,7 @@
 <div class="card" id="authCard">
   <h2 id="formTitle">登录</h2>
   <form id="authForm">
-    <input id="email" type="email" placeholder="邮箱" required />
+    <input id="identifier" type="text" placeholder="邮箱 或 用户名" required />
     <input id="username" type="text" placeholder="用户名（仅注册时填写）" class="hidden" />
     <input id="password" type="password" placeholder="密码（至少 6 位）" required minlength="6" />
     <button id="submitBtn" type="submit">登录</button>
@@ -67,25 +71,36 @@
     用户名：<span id="userName">加载中…</span><br />
     用户 ID：<span id="userId" style="font-size:12px;word-break:break-all"></span>
   </div>
-  <button style="margin-top:20px" id="logoutBtn">退出登录</button>
+  
+  <div class="divider"></div>
+  
+  <!-- 修改密码区域 -->
+  <div class="sub-title">修改密码</div>
+  <form id="pwdForm">
+    <input id="newPassword" type="password" placeholder="输入新密码（至少 6 位）" required minlength="6" />
+    <button id="updatePwdBtn" type="submit" style="background:#38a169">确认修改</button>
+  </form>
+  <div class="msg" id="pwdMsg"></div>
+
+  <div class="divider"></div>
+  
+  <button id="logoutBtn" style="background:#e53e3e">退出登录</button>
 </div>
 
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-// ====== ① 换成你自己的（Project Settings → API） ======
 const SUPABASE_URL = 'https://cabgmnpvdbqbahubdusk.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4_YtNPgv7q_hP9RUBz0zUg_QCzoLH7D';
-// =====================================================
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// 获取 DOM
+// DOM 元素获取
 const authCard   = document.getElementById('authCard');
 const dashboard  = document.getElementById('dashboard');
 const formTitle  = document.getElementById('formTitle');
 const authForm   = document.getElementById('authForm');
-const emailInput = document.getElementById('email');
+const identifierInput = document.getElementById('identifier');
 const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
 const submitBtn  = document.getElementById('submitBtn');
@@ -93,10 +108,19 @@ const switchLink = document.getElementById('switchLink');
 const switchText = document.getElementById('switchText');
 const msgEl      = document.getElementById('msg');
 const logoutBtn  = document.getElementById('logoutBtn');
+const pwdForm = document.getElementById('pwdForm');
+const newPasswordInput = document.getElementById('newPassword');
+const updatePwdBtn = document.getElementById('updatePwdBtn');
+const pwdMsgEl = document.getElementById('pwdMsg');
 
 let isLoginMode = true;
 
-// ---- 界面切换 ----
+// 🛡️ 前端防御：防止超长字符撑爆数据库
+identifierInput.maxLength = 50;
+passwordInput.maxLength = 50;
+newPasswordInput.maxLength = 50;
+usernameInput.maxLength = 20;
+
 function setMode(login) {
   isLoginMode = login;
   formTitle.textContent = login ? '登录' : '注册';
@@ -104,64 +128,139 @@ function setMode(login) {
   switchText.textContent = login ? '还没有账号？' : '已有账号？';
   switchLink.textContent = login ? '去注册' : '去登录';
   usernameInput.classList.toggle('hidden', login);
+  
+  if (login) {
+    identifierInput.type = 'text';
+    identifierInput.placeholder = '邮箱 或 用户名';
+  } else {
+    identifierInput.type = 'email';
+    identifierInput.placeholder = '邮箱';
+  }
   showMsg('', '');
 }
 
 switchLink.addEventListener('click', () => setMode(!isLoginMode));
 
-function showMsg(text, type) {
-  msgEl.textContent = text;
-  msgEl.className = 'msg ' + (type || '');
+function showMsg(text, type, isPwd = false) {
+  const el = isPwd ? pwdMsgEl : msgEl;
+  el.textContent = text;
+  el.className = 'msg ' + (type || '');
 }
 
-function setLoading(loading) {
-  submitBtn.disabled = loading;
-  submitBtn.textContent = loading ? '处理中…' : (isLoginMode ? '登录' : '注册');
+function setLoading(loading, isPwd = false) {
+  const btn = isPwd ? updatePwdBtn : submitBtn;
+  btn.disabled = loading;
+  if (isPwd) {
+    btn.textContent = loading ? '修改中…' : '确认修改';
+  } else {
+    btn.textContent = loading ? '处理中…' : (isLoginMode ? '登录' : '注册');
+  }
 }
 
-// ---- 表单提交：登录 or 注册 ----
+// 🛡️ 前端防御：本地频率限制（5秒冷却）
+function checkCooldown() {
+  const lastReq = localStorage.getItem('last_auth_request');
+  const now = Date.now();
+  if (lastReq && now - lastReq < 5000) { // 5000毫秒 = 5秒
+    const wait = Math.ceil((5000 - (now - lastReq)) / 1000);
+    throw new Error(`请求过于频繁，请等待 ${wait} 秒后再试。`);
+  }
+  localStorage.setItem('last_auth_request', now);
+}
+
 authForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   showMsg('', '');
-  setLoading(true);
-
-  const email = emailInput.value.trim();
-  const password = passwordInput.value;
-  const username = usernameInput.value.trim();
+  
+  // 防后端资源耗尽：检查是否在后台偷偷刷
+  if (document.hidden) return;
 
   try {
+    checkCooldown(); // 触发冷却检查
+    
+    const identifier = identifierInput.value.trim();
+    const password = passwordInput.value;
+    const username = usernameInput.value.trim();
+
+    // 🛡️ 前端防御：基本格式校验
+    if (!identifier || !password) throw new Error('请填写完整信息');
+    if (!isLoginMode && !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      throw new Error('用户名只能包含字母、数字和下划线，长度3-20');
+    }
+    if (!isLoginMode && password.length < 6) throw new Error('密码至少6位');
+    
+    setLoading(true);
+
     if (isLoginMode) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      let loginEmail = identifier;
+      if (!identifier.includes('@')) {
+        // 改为调用安全的 RPC 函数查询邮箱
+        const { data: foundEmail, error } = await supabase
+          .rpc('get_email_by_username', { input_username: identifier });
+        
+        // 模糊报错，防止攻击者探测用户名是否存在
+        if (error || !foundEmail) throw new Error('用户名或密码错误');
+        loginEmail = foundEmail;
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
+      if (error) throw new Error('用户名或密码错误'); // 统一报错
+
     } else {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: identifier,
         password,
-        options: { data: { username: username || email.split('@')[0] } }
+        options: { data: { username: username || identifier.split('@')[0] } }
       });
       if (error) throw error;
 
-      // 如果开启了邮箱确认，signUp 不会直接返回 session
       if (!data.session) {
         showMsg('注册成功！请到邮箱点击确认链接后再登录。', 'success');
         setMode(true);
         return;
       }
     }
-    // 登录成功由 onAuthStateChange 统一处理界面切换
   } catch (err) {
     showMsg(err.message || '出错了，请重试', 'error');
+    // 如果发生了错误，退还冷却时间，允许用户修改后立刻重试
+    if (!err.message.includes('请求过于频繁')) {
+      localStorage.removeItem('last_auth_request');
+    }
   } finally {
     setLoading(false);
   }
 });
 
-// ---- 退出登录 ----
+// 修改密码逻辑（同样 5 秒冷却防护）
+pwdForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  showMsg('', '', true);
+  try {
+    checkCooldown();
+    setLoading(true, true);
+
+    const newPassword = newPasswordInput.value;
+    if (newPassword.length < 6) throw new Error('密码至少6位');
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+    
+    showMsg('密码修改成功！', 'success', true);
+    newPasswordInput.value = '';
+  } catch (err) {
+    showMsg(err.message || '修改失败', 'error', true);
+    if (!err.message.includes('请求过于频繁')) {
+      localStorage.removeItem('last_auth_request');
+    }
+  } finally {
+    setLoading(false, true);
+  }
+});
+
 logoutBtn.addEventListener('click', async () => {
   await supabase.auth.signOut();
 });
 
-// ---- 登录后：从 profiles 表读取用户名（演示 RLS + 数据库查询）----
 async function loadProfile(user) {
   document.getElementById('userEmail').textContent = user.email;
   document.getElementById('userId').textContent = user.id;
@@ -173,16 +272,16 @@ async function loadProfile(user) {
     .single();
 
   document.getElementById('userName').textContent =
-    error ? '（读取失败：' + error.message + '）'
-          : (data?.username || '（未设置）');
+    error ? '（读取失败）' : (data?.username || '（未设置）');
 }
 
-// ---- 统一处理登录状态变化 ----
 function renderSession(session) {
   if (session?.user) {
     authCard.classList.add('hidden');
     dashboard.classList.remove('hidden');
     passwordInput.value = '';
+    newPasswordInput.value = '';
+    pwdMsgEl.textContent = '';
     loadProfile(session.user);
   } else {
     dashboard.classList.add('hidden');
@@ -191,10 +290,7 @@ function renderSession(session) {
   }
 }
 
-// 页面加载时检查已有会话
 supabase.auth.getSession().then(({ data }) => renderSession(data.session));
-
-// 监听后续登录/登出事件
 supabase.auth.onAuthStateChange((_event, session) => {
   renderSession(session);
 });
