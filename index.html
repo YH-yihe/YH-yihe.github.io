@@ -1,299 +1,160 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>登录 / 注册示例</title>
-<style>
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; min-height: 100vh; display: flex;
-    align-items: center; justify-content: center;
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-  }
-  .card {
-    width: 360px; background: #fff; border-radius: 16px;
-    padding: 32px; box-shadow: 0 20px 50px rgba(0,0,0,.25);
-  }
-  h2 { margin: 0 0 20px; text-align: center; color: #333; }
-  input {
-    width: 100%; padding: 12px 14px; margin-bottom: 12px;
-    border: 1px solid #ddd; border-radius: 8px; font-size: 14px;
-    outline: none; transition: border-color .2s;
-  }
-  input:focus { border-color: #667eea; }
-  button {
-    width: 100%; padding: 12px; border: none; border-radius: 8px;
-    background: #667eea; color: #fff; font-size: 15px;
-    cursor: pointer; transition: opacity .2s;
-  }
-  button:hover { opacity: .9; }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  .switch { text-align: center; margin-top: 16px; font-size: 14px; color: #666; }
-  .switch a { color: #667eea; cursor: pointer; text-decoration: none; }
-  .msg { min-height: 20px; margin-top: 12px; font-size: 13px; text-align: center; }
-  .msg.error { color: #e53e3e; }
-  .msg.success { color: #38a169; }
-  .hidden { display: none; }
-  .info { font-size: 14px; color: #444; line-height: 1.9; }
-  .info span { font-weight: 600; color: #667eea; }
-  
-  /* 新增：修改密码区域的样式 */
-  .divider { margin: 20px 0; border-top: 1px solid #eee; }
-  .sub-title { font-size: 14px; color: #333; margin-bottom: 10px; font-weight: 600;}
-</style>
-<link rel="icon" href="https://cabgmnpvdbqbahubdusk.supabase.co/storage/v1/object/sign/img/128.png?token=eyJraWQiOiI1NjliOGE1Mi00ODEwLTQyMzctYTg1Yy05Njg5ZDRhNjA4OWIiLCJhbGciOiJFUzI1NiJ9.eyJ1cmwiOiJpbWcvMTI4LnBuZyIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3OTQzOTA0MTMsImV4cCI6MjEwOTc1MDQxM30.RCS3psy2bzRl8vWh_OKm0WhCvL7noGPEGJ3_SjRzwMo9lgHq_Jfb7QTn2nYqdm67Zm5_kgiWL69HKql652GhXg" type="image/x-icon">
-</head>
-<body>
-
-<!-- 登录 / 注册卡片 -->
-<div class="card" id="authCard">
-  <h2 id="formTitle">登录</h2>
-  <form id="authForm">
-    <input id="identifier" type="text" placeholder="邮箱 或 用户名" required />
-    <input id="username" type="text" placeholder="用户名（仅注册时填写）" class="hidden" />
-    <input id="password" type="password" placeholder="密码（至少 6 位）" required minlength="6" />
-    <button id="submitBtn" type="submit">登录</button>
-  </form>
-  <div class="switch">
-    <span id="switchText">还没有账号？</span>
-    <a id="switchLink">去注册</a>
-  </div>
-  <div class="msg" id="msg"></div>
-</div>
-
-<!-- 登录后的面板 -->
-<div class="card hidden" id="dashboard">
-  <h2>欢迎回来 🎉</h2>
-  <div class="info">
-    邮箱：<span id="userEmail"></span><br />
-    用户名：<span id="userName">加载中…</span><br />
-    用户 ID：<span id="userId" style="font-size:12px;word-break:break-all"></span>
-  </div>
-  
-  <div class="divider"></div>
-  
-  <!-- 修改密码区域 -->
-  <div class="sub-title">修改密码</div>
-  <form id="pwdForm">
-    <input id="newPassword" type="password" placeholder="输入新密码（至少 6 位）" required minlength="6" />
-    <button id="updatePwdBtn" type="submit" style="background:#38a169">确认修改</button>
-  </form>
-  <div class="msg" id="pwdMsg"></div>
-
-  <div class="divider"></div>
-  
-  <button id="logoutBtn" style="background:#e53e3e">退出登录</button>
-</div>
-
-<script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-
-const SUPABASE_URL = 'https://cabgmnpvdbqbahubdusk.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_4_YtNPgv7q_hP9RUBz0zUg_QCzoLH7D';
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// DOM 元素获取
-const authCard   = document.getElementById('authCard');
-const dashboard  = document.getElementById('dashboard');
-const formTitle  = document.getElementById('formTitle');
-const authForm   = document.getElementById('authForm');
-const identifierInput = document.getElementById('identifier');
-const usernameInput = document.getElementById('username');
-const passwordInput = document.getElementById('password');
-const submitBtn  = document.getElementById('submitBtn');
-const switchLink = document.getElementById('switchLink');
-const switchText = document.getElementById('switchText');
-const msgEl      = document.getElementById('msg');
-const logoutBtn  = document.getElementById('logoutBtn');
-const pwdForm = document.getElementById('pwdForm');
-const newPasswordInput = document.getElementById('newPassword');
-const updatePwdBtn = document.getElementById('updatePwdBtn');
-const pwdMsgEl = document.getElementById('pwdMsg');
-
-let isLoginMode = true;
-
-// 🛡️ 前端防御：防止超长字符撑爆数据库
-identifierInput.maxLength = 50;
-passwordInput.maxLength = 50;
-newPasswordInput.maxLength = 50;
-usernameInput.maxLength = 20;
-
-function setMode(login) {
-  isLoginMode = login;
-  formTitle.textContent = login ? '登录' : '注册';
-  submitBtn.textContent = login ? '登录' : '注册';
-  switchText.textContent = login ? '还没有账号？' : '已有账号？';
-  switchLink.textContent = login ? '去注册' : '去登录';
-  usernameInput.classList.toggle('hidden', login);
-  
-  if (login) {
-    identifierInput.type = 'text';
-    identifierInput.placeholder = '邮箱 或 用户名';
-  } else {
-    identifierInput.type = 'email';
-    identifierInput.placeholder = '邮箱';
-  }
-  showMsg('', '');
-}
-
-switchLink.addEventListener('click', () => setMode(!isLoginMode));
-
-function showMsg(text, type, isPwd = false) {
-  const el = isPwd ? pwdMsgEl : msgEl;
-  el.textContent = text;
-  el.className = 'msg ' + (type || '');
-}
-
-function setLoading(loading, isPwd = false) {
-  const btn = isPwd ? updatePwdBtn : submitBtn;
-  btn.disabled = loading;
-  if (isPwd) {
-    btn.textContent = loading ? '修改中…' : '确认修改';
-  } else {
-    btn.textContent = loading ? '处理中…' : (isLoginMode ? '登录' : '注册');
-  }
-}
-
-// 🛡️ 前端防御：本地频率限制（5秒冷却）
-function checkCooldown() {
-  const lastReq = localStorage.getItem('last_auth_request');
-  const now = Date.now();
-  if (lastReq && now - lastReq < 5000) { // 5000毫秒 = 5秒
-    const wait = Math.ceil((5000 - (now - lastReq)) / 1000);
-    throw new Error(`请求过于频繁，请等待 ${wait} 秒后再试。`);
-  }
-  localStorage.setItem('last_auth_request', now);
-}
-
-authForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  showMsg('', '');
-  
-  // 防后端资源耗尽：检查是否在后台偷偷刷
-  if (document.hidden) return;
-
-  try {
-    checkCooldown(); // 触发冷却检查
-    
-    const identifier = identifierInput.value.trim();
-    const password = passwordInput.value;
-    const username = usernameInput.value.trim();
-
-    // 🛡️ 前端防御：基本格式校验
-    if (!identifier || !password) throw new Error('请填写完整信息');
-    if (!isLoginMode && !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-      throw new Error('用户名只能包含字母、数字和下划线，长度3-20');
-    }
-    if (!isLoginMode && password.length < 6) throw new Error('密码至少6位');
-    
-    setLoading(true);
-
-    if (isLoginMode) {
-      let loginEmail = identifier;
-      if (!identifier.includes('@')) {
-        // 改为调用安全的 RPC 函数查询邮箱
-        const { data: foundEmail, error } = await supabase
-          .rpc('get_email_by_username', { input_username: identifier });
-        
-        // 模糊报错，防止攻击者探测用户名是否存在
-        if (error || !foundEmail) throw new Error('用户名或密码错误');
-        loginEmail = foundEmail;
-      }
-
-      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
-      if (error) throw new Error('用户名或密码错误'); // 统一报错
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YiHe 官方网站</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
     } else {
-      const { data, error } = await supabase.auth.signUp({
-        email: identifier,
-        password,
-        options: { data: { username: username || identifier.split('@')[0] } }
-      });
-      if (error) throw error;
+      document.documentElement.classList.remove('dark');
+    }
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 3px; }
+    .dark ::-webkit-scrollbar-thumb { background: #4f46e5; }
+    .chat-window { display: none; }
+    .chat-window.active { display: flex; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white font-sans antialiased h-screen flex flex-col overflow-hidden transition-colors duration-300">
 
-      if (!data.session) {
-        showMsg('注册成功！请到邮箱点击确认链接后再登录。', 'success');
-        setMode(true);
-        return;
+  <header class="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-10 sticky top-0 shrink-0 shadow-sm transition-colors duration-300">
+    <div class="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent cursor-pointer" onclick="window.location.href='index.html'">YiHe.</div>
+    <div class="hidden md:flex gap-6 items-center">
+      <a href="index.html" class="text-gray-900 dark:text-white font-medium">首页</a>
+      <a href="download.html" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">软件下载</a>
+      <a href="user.html" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">用户中心</a>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <button id="themeToggle" class="p-2 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition">
+        <svg id="sunIcon" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+        <svg id="moonIcon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+      </button>
+
+      <div id="navAuth">
+        <!-- 🌟 直接跳转登录页 -->
+        <a href="login.html" class="px-5 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition text-sm font-medium shadow-md shadow-indigo-600/20">登录</a>
+      </div>
+      <div id="navUser" class="hidden flex items-center gap-4">
+        <a href="user.html" class="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition flex items-center gap-2" title="进入用户中心">
+          欢迎, <span id="displayUsername" class="text-indigo-600 dark:text-indigo-400 font-bold underline decoration-indigo-300 dark:decoration-indigo-500/30">加载中...</span>
+        </a>
+        <button id="logoutBtn" class="text-sm text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition">退出</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center">
+    <section class="text-center py-20 max-w-2xl">
+      <h1 class="text-5xl font-extrabold mb-6 leading-tight text-gray-900 dark:text-white">探索 <span class="text-indigo-600 dark:text-indigo-400">YiHe</span> 的极致体验</h1>
+      <p class="text-gray-500 dark:text-gray-400 text-lg mb-10">这里提供最优质的资源下载与社区交流。加入我们，开启全新的数字旅程。</p>
+      <a href="download.html" class="inline-block px-8 py-3 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition font-medium text-lg shadow-lg shadow-indigo-600/30">前往下载中心</a>
+    </section>
+  </main>
+
+  <!-- 聊天室悬浮按钮 -->
+  <div id="chatToggle" class="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg shadow-indigo-600/40 hover:bg-indigo-700 transition z-40 hidden">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+  </div>
+
+  <div id="chatWindow" class="chat-window fixed bottom-24 right-6 w-80 h-96 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl flex-col shadow-2xl z-40 overflow-hidden transition-colors duration-300">
+    <div class="bg-indigo-600 p-4 flex justify-between items-center text-white shrink-0">
+      <span class="font-bold">💬 实时交流大厅</span>
+      <button id="closeChat" class="hover:text-gray-200">✕</button>
+    </div>
+    <div class="bg-amber-50 dark:bg-amber-500/10 border-b border-amber-100 dark:border-amber-500/20 px-3 py-2 flex items-start gap-2 shrink-0">
+      <span class="text-amber-500 text-xs mt-0.5">⚠️</span>
+      <p class="text-xs text-amber-700 dark:text-amber-400 leading-tight">系统每天自动清理 3 天前的历史消息，请及时备份。</p>
+    </div>
+    <div id="chatMessages" class="flex-1 p-4 overflow-y-auto flex flex-col gap-3 bg-gray-50 dark:bg-gray-900 transition-colors duration-300"></div>
+    <form id="chatForm" class="p-3 border-t border-gray-200 dark:border-gray-700 flex gap-2 shrink-0 bg-white dark:bg-gray-800">
+      <input id="chatInput" type="text" placeholder="输入消息..." class="flex-1 bg-gray-100 dark:bg-gray-900 border border-transparent dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:bg-white dark:focus:bg-gray-800 focus:border-indigo-500 transition" required autocomplete="off" />
+      <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">发送</button>
+    </form>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+    const SUPABASE_URL = 'https://cabgmnpvdbqbahubdusk.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_4_YtNPgv7q_hP9RUBz0zUg_QCzoLH7D';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    document.getElementById('themeToggle').onclick = () => {
+      const html = document.documentElement;
+      if (html.classList.contains('dark')) { html.classList.remove('dark'); localStorage.setItem('theme', 'light'); } 
+      else { html.classList.add('dark'); localStorage.setItem('theme', 'dark'); }
+    };
+
+    let currentUser = null;
+    const chatToggle = document.getElementById('chatToggle');
+    const chatWindow = document.getElementById('chatWindow');
+    const closeChat = document.getElementById('closeChat');
+    const chatMessages = document.getElementById('chatMessages');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+
+    document.getElementById('logoutBtn').onclick = () => supabase.auth.signOut();
+    chatToggle.onclick = () => chatWindow.classList.add('active');
+    closeChat.onclick = () => chatWindow.classList.remove('active');
+
+    function appendMessage(msg) {
+      const isMe = currentUser && msg.user_id === currentUser.id;
+      const div = document.createElement('div');
+      div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'text-xs text-gray-500 dark:text-gray-400 mb-1';
+      nameSpan.textContent = isMe ? '我' : (msg.username || '匿名');
+      
+      const msgBubble = document.createElement('div');
+      msgBubble.className = `max-w-[80%] p-3 rounded-xl text-sm break-all ${
+        isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-tl-none shadow-sm'
+      }`;
+      msgBubble.textContent = msg.content;
+      
+      div.appendChild(nameSpan); div.appendChild(msgBubble);
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    chatForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const content = chatInput.value.trim();
+      if (!content || !currentUser) return;
+      chatInput.value = ''; 
+      await supabase.from('messages').insert({ content, user_id: currentUser.id, username: document.getElementById('displayUsername').textContent });
+    };
+
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      currentUser = session?.user || null;
+      if (currentUser) {
+        document.getElementById('navAuth').classList.add('hidden');
+        document.getElementById('navUser').classList.remove('hidden');
+        const { data: profile } = await supabase.from('profiles').select('username').eq('id', currentUser.id).single();
+        document.getElementById('displayUsername').textContent = profile?.username || '用户';
+        chatToggle.classList.remove('hidden');
+        chatMessages.innerHTML = '';
+        supabase.from('messages').select('*').order('created_at', { ascending: true }).limit(50).then(({ data }) => {
+          if (data) data.forEach(appendMessage);
+        });
+      } else {
+        document.getElementById('navAuth').classList.remove('hidden');
+        document.getElementById('navUser').classList.add('hidden');
+        chatToggle.classList.add('hidden');
+        chatWindow.classList.remove('active');
+        chatMessages.innerHTML = '';
       }
-    }
-  } catch (err) {
-    showMsg(err.message || '出错了，请重试', 'error');
-    // 如果发生了错误，退还冷却时间，允许用户修改后立刻重试
-    if (!err.message.includes('请求过于频繁')) {
-      localStorage.removeItem('last_auth_request');
-    }
-  } finally {
-    setLoading(false);
-  }
-});
+    });
 
-// 修改密码逻辑（同样 5 秒冷却防护）
-pwdForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  showMsg('', '', true);
-  try {
-    checkCooldown();
-    setLoading(true, true);
-
-    const newPassword = newPasswordInput.value;
-    if (newPassword.length < 6) throw new Error('密码至少6位');
-
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) throw error;
-    
-    showMsg('密码修改成功！', 'success', true);
-    newPasswordInput.value = '';
-  } catch (err) {
-    showMsg(err.message || '修改失败', 'error', true);
-    if (!err.message.includes('请求过于频繁')) {
-      localStorage.removeItem('last_auth_request');
-    }
-  } finally {
-    setLoading(false, true);
-  }
-});
-
-logoutBtn.addEventListener('click', async () => {
-  await supabase.auth.signOut();
-});
-
-async function loadProfile(user) {
-  document.getElementById('userEmail').textContent = user.email;
-  document.getElementById('userId').textContent = user.id;
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('username')
-    .eq('id', user.id)
-    .single();
-
-  document.getElementById('userName').textContent =
-    error ? '（读取失败）' : (data?.username || '（未设置）');
-}
-
-function renderSession(session) {
-  if (session?.user) {
-    authCard.classList.add('hidden');
-    dashboard.classList.remove('hidden');
-    passwordInput.value = '';
-    newPasswordInput.value = '';
-    pwdMsgEl.textContent = '';
-    loadProfile(session.user);
-  } else {
-    dashboard.classList.add('hidden');
-    authCard.classList.remove('hidden');
-    document.getElementById('userName').textContent = '加载中…';
-  }
-}
-
-supabase.auth.getSession().then(({ data }) => renderSession(data.session));
-supabase.auth.onAuthStateChange((_event, session) => {
-  renderSession(session);
-});
-</script>
+    supabase.channel('public:messages').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+      if (currentUser) appendMessage(payload.new);
+    }).subscribe();
+  </script>
 </body>
 </html>

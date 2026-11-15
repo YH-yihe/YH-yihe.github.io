@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录/注册 - YiHe</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <style>
+    /* 隐藏滚动条 */
+    body::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 font-sans antialiased h-screen w-screen overflow-hidden flex relative transition-colors duration-300">
+
+  <!-- ================= 左侧/全屏 背景图片 ================= -->
+  <!-- ⚠️ 请将 src 替换为你想要的图片链接 -->
+  <img 
+    src="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=2070&auto=format&fit=crop" 
+    alt="Background" 
+    class="absolute inset-0 w-full h-full object-cover z-0"
+  >
+  <!-- 图片上的遮罩层，让文字更清晰 -->
+  <div class="absolute inset-0 bg-black/10 dark:bg-black/40 z-0 pointer-events-none"></div>
+
+  <!-- ================= 右侧 1/3 登录面板 ================= -->
+  <!-- md:w-1/3 在电脑端占三分之一，手机上占满全屏 -->
+  <div class="relative z-10 w-full md:w-1/3 h-full flex flex-col justify-center items-center p-8 
+              bg-white/25 dark:bg-gray-900/40 backdrop-blur-2xl border-l border-white/20 dark:border-gray-700/50 shadow-2xl ml-auto">
+    
+    <div class="w-full max-w-sm">
+      <!-- 返回首页 -->
+      <a href="index.html" class="inline-flex items-center text-sm text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 mb-8 transition">
+        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        返回首页
+      </a>
+
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2" id="modalTitle">登录 YiHe</h1>
+        <p class="text-sm text-gray-600 dark:text-gray-300">欢迎回来，请登录您的账号</p>
+      </div>
+
+      <!-- 表单 -->
+      <form id="authForm" class="flex flex-col gap-5">
+        <div>
+          <input id="identifier" type="text" placeholder="邮箱 或 用户名" required 
+            class="w-full bg-white/60 dark:bg-gray-800/60 border border-gray-300/50 dark:border-gray-600/50 rounded-xl px-4 py-3.5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition" />
+        </div>
+        <div>
+          <input id="username" type="text" placeholder="用户名（仅注册时填写）" class="hidden w-full bg-white/60 dark:bg-gray-800/60 border border-gray-300/50 dark:border-gray-600/50 rounded-xl px-4 py-3.5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition" />
+        </div>
+        <div>
+          <input id="password" type="password" placeholder="密码 (至少 6 位)" required minlength="6" 
+            class="w-full bg-white/60 dark:bg-gray-800/60 border border-gray-300/50 dark:border-gray-600/50 rounded-xl px-4 py-3.5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition" />
+        </div>
+        
+        <button type="submit" id="submitBtn" 
+          class="w-full bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl py-3.5 font-bold transition shadow-lg shadow-indigo-600/30 mt-2">
+          登录
+        </button>
+      </form>
+
+      <!-- 提示信息 -->
+      <div id="msg" class="text-center text-sm mt-4 text-red-500 font-medium h-5"></div>
+
+      <!-- 切换登录/注册 -->
+      <div class="text-center mt-6 text-sm text-gray-700 dark:text-gray-300">
+        <span id="switchText">还没有账号？</span>
+        <a id="switchLink" class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer ml-1 transition">去注册</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+    const SUPABASE_URL = 'https://cabgmnpvdbqbahubdusk.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_4_YtNPgv7q_hP9RUBz0zUg_QCzoLH7D';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let isLoginMode = true;
+
+    function translateError(err) {
+      let msg = err?.message || err?.error_description || err?.error || String(err);
+      if (/[\u4e00-\u9fa5]/.test(msg)) return msg;
+      if (msg.includes('Invalid login credentials')) return '邮箱/用户名或密码错误';
+      if (msg.includes('Email not confirmed')) return '邮箱尚未验证，请先查收验证邮件';
+      if (msg.includes('User already registered')) return '该邮箱已被注册，请直接登录';
+      if (msg.includes('Password should be at least 6 characters')) return '密码长度不能少于 6 位';
+      if (msg.includes('For security purposes')) return '请求过于频繁，请稍后再试';
+      return msg;
+    }
+
+    const authForm = document.getElementById('authForm');
+    const identifierInput = document.getElementById('identifier');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const submitBtn = document.getElementById('submitBtn');
+    const msgEl = document.getElementById('msg');
+
+    // 切换登录/注册模式
+    document.getElementById('switchLink').onclick = () => {
+      isLoginMode = !isLoginMode;
+      document.getElementById('modalTitle').textContent = isLoginMode ? '登录 YiHe' : '注册 YiHe';
+      submitBtn.textContent = isLoginMode ? '登录' : '注册';
+      usernameInput.classList.toggle('hidden', isLoginMode);
+      document.getElementById('switchText').textContent = isLoginMode ? '还没有账号？' : '已有账号？';
+      document.getElementById('switchLink').textContent = isLoginMode ? '去注册' : '去登录';
+      msgEl.textContent = '';
+    };
+
+    authForm.onsubmit = async (e) => {
+      e.preventDefault();
+      msgEl.textContent = '';
+      try {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '处理中...';
+        const identifier = identifierInput.value.trim();
+        const password = passwordInput.value;
+        
+        if (isLoginMode) {
+          let loginEmail = identifier;
+          if (!identifier.includes('@')) {
+            const { data, error } = await supabase.rpc('get_email_by_username', { input_username: identifier });
+            if (error || !data) throw new Error('用户名或密码错误');
+            loginEmail = data;
+          }
+          const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
+          if (error) throw error;
+          
+          // 登录成功，跳转到首页或用户中心
+          window.location.href = 'index.html';
+        } else {
+          const username = usernameInput.value.trim();
+          if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) throw new Error('用户名仅限3-20位字母、数字或下划线');
+          
+          const { data: isTaken } = await supabase.rpc('is_username_taken', { input_username: username });
+          if (isTaken) throw new Error('该用户名已被注册');
+          
+          const { error } = await supabase.auth.signUp({ email: identifier, password, options: { data: { username } } });
+          if (error) throw error;
+          
+          msgEl.className = "text-center text-sm mt-4 text-green-600 dark:text-green-400 font-medium h-5";
+          msgEl.textContent = '注册成功，请查收邮件验证！';
+          // 注册后切回登录页面
+          setTimeout(() => { document.getElementById('switchLink').click(); }, 2000);
+        }
+      } catch (err) {
+        msgEl.className = "text-center text-sm mt-4 text-red-500 font-medium h-5";
+        msgEl.textContent = translateError(err);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = isLoginMode ? '登录' : '注册';
+      }
+    };
+  </script>
+</body>
+</html>

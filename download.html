@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>软件下载中心 - YiHe</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    tailwind.config = { darkMode: 'class' };
+  </script>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white font-sans antialiased min-h-screen flex flex-col transition-colors duration-300">
+
+  <header class="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shrink-0 sticky top-0 z-10 shadow-sm transition-colors duration-300">
+    <div class="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent cursor-pointer" onclick="window.location.href='index.html'">YiHe.</div>
+    <div class="hidden md:flex gap-6 items-center">
+      <a href="index.html" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">首页</a>
+      <a href="download.html" class="text-gray-900 dark:text-white font-medium">软件下载</a>
+      <a href="user.html" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">用户中心</a>
+    </div>
+    
+    <div class="flex items-center gap-4">
+      <button id="themeToggle" class="p-2 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition">
+        <svg id="sunIcon" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+        <svg id="moonIcon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+      </button>
+      
+      <div id="navAuth" class="hidden">
+        <a href="login.html" class="px-5 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition text-sm font-medium shadow-md">登录</a>
+      </div>
+      <div id="navUser" class="hidden flex items-center gap-4">
+        <a href="user.html" class="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition">
+          欢迎, <span id="displayUsername" class="text-indigo-600 dark:text-indigo-400 font-bold">...</span>
+        </a>
+        <button id="logoutBtn" class="text-sm text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition">退出</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 p-6 flex flex-col items-center">
+    <div class="w-full max-w-5xl py-8">
+      <div id="noticeBanner" class="mb-8 p-4 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 rounded-xl text-center text-indigo-700 dark:text-indigo-300 transition-colors duration-300">
+        🔒 为防恶意爬虫和滥用，请先登录后下载文件。
+      </div>
+
+      <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+        <span class="text-indigo-600 dark:text-indigo-400">✨</span> 官方正版软件
+      </h2>
+      <div id="officialList" class="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-50 pointer-events-none mb-16"></div>
+
+      <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+        <span class="text-gray-400 dark:text-gray-500">📦</span> 软件资源备份 (按时间排序)
+      </h2>
+      <div id="backupList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-50 pointer-events-none"></div>
+      <div id="emptyTip" class="hidden text-center text-gray-500 dark:text-gray-400 py-10">暂无备份资源</div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+    const SUPABASE_URL = 'https://cabgmnpvdbqbahubdusk.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_4_YtNPgv7q_hP9RUBz0zUg_QCzoLH7D';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUser = null;
+
+    const officialList = document.getElementById('officialList');
+    const backupList = document.getElementById('backupList');
+    const emptyTip = document.getElementById('emptyTip');
+    const noticeBanner = document.getElementById('noticeBanner');
+
+    document.getElementById('themeToggle').onclick = () => {
+      const html = document.documentElement;
+      if (html.classList.contains('dark')) { html.classList.remove('dark'); localStorage.setItem('theme', 'light'); } 
+      else { html.classList.add('dark'); localStorage.setItem('theme', 'dark'); }
+    };
+
+    document.getElementById('logoutBtn').onclick = () => supabase.auth.signOut();
+
+    async function handleDownload(bucketName, fileName, btnElement) {
+      if (!currentUser) return alert('请先登录后下载！');
+      const originalText = btnElement.textContent;
+      btnElement.textContent = '验证中...'; btnElement.disabled = true;
+      try {
+        const { data, error } = await supabase.storage.from(bucketName).createSignedUrl(fileName, 60);
+        if (error) throw error;
+        const a = document.createElement('a');
+        a.href = data.signedUrl; a.download = fileName;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        btnElement.textContent = '已开始下载';
+      } catch (err) {
+        alert('下载失败：' + err.message);
+        btnElement.textContent = originalText;
+      } finally {
+        setTimeout(() => { btnElement.disabled = false; btnElement.textContent = '点击下载'; }, 3000);
+      }
+    }
+
+    async function loadFiles() {
+      const { data: official } = await supabase.storage.from('official').list();
+      officialList.innerHTML = '';
+      if (official && official.length > 0) {
+        official.filter(f => f.name !== '.emptyFolderPlaceholder').forEach(file => {
+          const div = document.createElement('div');
+          div.className = 'bg-white dark:bg-gray-800 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-500/30 hover:border-indigo-300 dark:hover:border-indigo-400 transition-colors relative overflow-hidden shadow-sm';
+          div.innerHTML = `
+            <div class="absolute top-0 right-0 bg-indigo-600 text-white text-xs px-3 py-1 rounded-bl-lg font-bold">RECOMMENDED</div>
+            <h3 class="text-xl font-bold mb-2 break-all text-gray-900 dark:text-white">${file.name}</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">官方正版软件</p>
+            <button class="dl-btn w-full py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-bold transition" data-bucket="official" data-filename="${file.name}">点击下载</button>
+          `;
+          officialList.appendChild(div);
+        });
+      } else { officialList.innerHTML = '<div class="col-span-2 text-gray-500 dark:text-gray-400 py-4">暂无官方软件</div>'; }
+
+      const { data: backup } = await supabase.storage.from('backup').list();
+      backupList.innerHTML = '';
+      let files = backup ? backup.filter(f => f.name !== '.emptyFolderPlaceholder') : [];
+      if (files.length === 0) { emptyTip.classList.remove('hidden'); return; }
+      emptyTip.classList.add('hidden');
+      files.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      files.forEach(file => {
+        const div = document.createElement('div');
+        div.className = 'bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between transition-colors shadow-sm';
+        div.innerHTML = `
+          <div class="mb-4">
+            <h3 class="text-lg font-bold break-all text-gray-900 dark:text-white">${file.name}</h3>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">大小: ${(file.metadata?.size / 1024 / 1024).toFixed(1)} MB</div>
+          </div>
+          <button class="dl-btn w-full py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600 font-medium transition" data-bucket="backup" data-filename="${file.name}">点击下载</button>
+        `;
+        backupList.appendChild(div);
+      });
+
+      document.querySelectorAll('.dl-btn').forEach(btn => {
+        btn.onclick = (e) => handleDownload(e.target.getAttribute('data-bucket'), e.target.getAttribute('data-filename'), e.target);
+      });
+    }
+
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      currentUser = session?.user || null;
+      if (currentUser) {
+        document.getElementById('navAuth').classList.add('hidden');
+        document.getElementById('navUser').classList.remove('hidden');
+        
+        const { data: profile } = await supabase.from('profiles').select('username').eq('id', currentUser.id).single();
+        document.getElementById('displayUsername').textContent = profile?.username || '用户';
+
+        noticeBanner.className = 'mb-8 p-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/30 rounded-xl text-center text-emerald-700 dark:text-emerald-400 transition-colors';
+        noticeBanner.textContent = '✅ 您已登录，现在可以点击下载所有文件。';
+        officialList.classList.remove('opacity-50', 'pointer-events-none');
+        backupList.classList.remove('opacity-50', 'pointer-events-none');
+        
+        loadFiles();
+      } else {
+        document.getElementById('navAuth').classList.remove('hidden');
+        document.getElementById('navUser').classList.add('hidden');
+        noticeBanner.className = 'mb-8 p-4 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 rounded-xl text-center text-indigo-700 dark:text-indigo-300 transition-colors';
+        noticeBanner.textContent = '🔒 为防恶意爬虫和滥用，请先登录后下载文件。';
+        officialList.classList.add('opacity-50', 'pointer-events-none');
+        backupList.classList.add('opacity-50', 'pointer-events-none');
+        officialList.innerHTML = ''; backupList.innerHTML = '';
+      }
+    });
+  </script>
+</body>
+</html>
