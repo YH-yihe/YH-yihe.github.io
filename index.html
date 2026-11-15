@@ -18,8 +18,19 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 3px; }
     .dark ::-webkit-scrollbar-thumb { background: #4f46e5; }
-    .chat-window { display: none; }
+    .chat-window { display: none; transition: all 0.3s ease; }
     .chat-window.active { display: flex; }
+    
+    /* 全屏聊天室样式 */
+    .chat-window.fullscreen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100vw; height: 100vh;
+      max-width: none; max-height: none;
+      border-radius: 0;
+      border: none;
+      z-index: 100;
+    }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white font-sans antialiased h-screen flex flex-col overflow-hidden transition-colors duration-300">
@@ -39,7 +50,6 @@
       </button>
 
       <div id="navAuth">
-        <!-- 🌟 直接跳转登录页 -->
         <a href="login.html" class="px-5 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition text-sm font-medium shadow-md shadow-indigo-600/20">登录</a>
       </div>
       <div id="navUser" class="hidden flex items-center gap-4">
@@ -64,16 +74,33 @@
     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
   </div>
 
+  <!-- 聊天室窗口 -->
   <div id="chatWindow" class="chat-window fixed bottom-24 right-6 w-80 h-96 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl flex-col shadow-2xl z-40 overflow-hidden transition-colors duration-300">
+    
+    <!-- 头部 -->
     <div class="bg-indigo-600 p-4 flex justify-between items-center text-white shrink-0">
       <span class="font-bold">💬 实时交流大厅</span>
-      <button id="closeChat" class="hover:text-gray-200">✕</button>
+      <div class="flex items-center gap-2">
+        <!-- 全屏按钮 -->
+        <button id="fullscreenChat" class="hover:text-gray-200 transition p-1" title="切换全屏">
+          <svg id="fullscreenIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+        </button>
+        <!-- 关闭按钮 -->
+        <button id="closeChat" class="hover:text-gray-200 transition p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
     </div>
+    
     <div class="bg-amber-50 dark:bg-amber-500/10 border-b border-amber-100 dark:border-amber-500/20 px-3 py-2 flex items-start gap-2 shrink-0">
       <span class="text-amber-500 text-xs mt-0.5">⚠️</span>
       <p class="text-xs text-amber-700 dark:text-amber-400 leading-tight">系统每天自动清理 3 天前的历史消息，请及时备份。</p>
     </div>
-    <div id="chatMessages" class="flex-1 p-4 overflow-y-auto flex flex-col gap-3 bg-gray-50 dark:bg-gray-900 transition-colors duration-300"></div>
+    
+    <div id="chatMessages" class="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+      <!-- 消息动态插入 -->
+    </div>
+    
     <form id="chatForm" class="p-3 border-t border-gray-200 dark:border-gray-700 flex gap-2 shrink-0 bg-white dark:bg-gray-800">
       <input id="chatInput" type="text" placeholder="输入消息..." class="flex-1 bg-gray-100 dark:bg-gray-900 border border-transparent dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:bg-white dark:focus:bg-gray-800 focus:border-indigo-500 transition" required autocomplete="off" />
       <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">发送</button>
@@ -86,75 +113,159 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_4_YtNPgv7q_hP9RUBz0zUg_QCzoLH7D';
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // 主题切换
     document.getElementById('themeToggle').onclick = () => {
       const html = document.documentElement;
-      if (html.classList.contains('dark')) { html.classList.remove('dark'); localStorage.setItem('theme', 'light'); } 
-      else { html.classList.add('dark'); localStorage.setItem('theme', 'dark'); }
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      } else {
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      }
     };
 
     let currentUser = null;
+    let chatChannel = null; // 用于管理 WebSocket 订阅，防止重复
+    const renderedMessageIds = new Set(); // 消息去重集合
+
     const chatToggle = document.getElementById('chatToggle');
     const chatWindow = document.getElementById('chatWindow');
     const closeChat = document.getElementById('closeChat');
     const chatMessages = document.getElementById('chatMessages');
     const chatForm = document.getElementById('chatForm');
     const chatInput = document.getElementById('chatInput');
+    const fullscreenChatBtn = document.getElementById('fullscreenChat');
+    const fullscreenIcon = document.getElementById('fullscreenIcon');
 
     document.getElementById('logoutBtn').onclick = () => supabase.auth.signOut();
-    chatToggle.onclick = () => chatWindow.classList.add('active');
-    closeChat.onclick = () => chatWindow.classList.remove('active');
 
+    // 聊天室打开/关闭
+    chatToggle.onclick = () => chatWindow.classList.add('active');
+    closeChat.onclick = () => {
+      chatWindow.classList.remove('active');
+      // 如果关闭时是全屏，退出全屏
+      if(chatWindow.classList.contains('fullscreen')) {
+        chatWindow.classList.remove('fullscreen');
+        fullscreenIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>';
+      }
+    };
+
+    // 全屏切换
+    fullscreenChatBtn.onclick = () => {
+      if (chatWindow.classList.contains('fullscreen')) {
+        chatWindow.classList.remove('fullscreen');
+        // 恢复“全屏”图标
+        fullscreenIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>';
+      } else {
+        chatWindow.classList.add('fullscreen');
+        // 换成“缩小”图标
+        fullscreenIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h4v4m0-4l-5 5m14-5h-4v4m0-4l5 5M4 10h4V6m0 4l-5-5m14 5h-4V6m0 4l5-5"></path>';
+      }
+    };
+
+    // 渲染单条消息
     function appendMessage(msg) {
+      // 防止重复渲染
+      if (renderedMessageIds.has(msg.id)) return;
+      renderedMessageIds.add(msg.id);
+
       const isMe = currentUser && msg.user_id === currentUser.id;
+      
       const div = document.createElement('div');
+      // 你自己发的靠右 (items-end)，别人发的靠左 (items-start)
       div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
+      
+      // 🌟 直接显示真实用户名
       const nameSpan = document.createElement('span');
       nameSpan.className = 'text-xs text-gray-500 dark:text-gray-400 mb-1';
-      nameSpan.textContent = isMe ? '我' : (msg.username || '匿名');
+      nameSpan.textContent = msg.username || '匿名用户';
       
       const msgBubble = document.createElement('div');
-      msgBubble.className = `max-w-[80%] p-3 rounded-xl text-sm break-all ${
-        isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-tl-none shadow-sm'
+      msgBubble.className = `max-w-[85%] p-3 rounded-xl text-sm break-all ${
+        isMe 
+          ? 'bg-indigo-600 text-white rounded-tr-none' 
+          : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-tl-none shadow-sm'
       }`;
       msgBubble.textContent = msg.content;
       
-      div.appendChild(nameSpan); div.appendChild(msgBubble);
+      div.appendChild(nameSpan);
+      div.appendChild(msgBubble);
       chatMessages.appendChild(div);
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
+    // 发送消息
     chatForm.onsubmit = async (e) => {
       e.preventDefault();
       const content = chatInput.value.trim();
       if (!content || !currentUser) return;
-      chatInput.value = ''; 
-      await supabase.from('messages').insert({ content, user_id: currentUser.id, username: document.getElementById('displayUsername').textContent });
+      
+      // 清空并禁用按钮防抖
+      chatInput.value = '';
+      const submitBtn = chatForm.querySelector('button');
+      submitBtn.disabled = true;
+      
+      try {
+        const userName = document.getElementById('displayUsername').textContent;
+        await supabase.from('messages').insert({ 
+          content, 
+          user_id: currentUser.id, 
+          username: userName 
+        });
+      } catch (error) {
+        console.error('发送失败', error);
+      } finally {
+        submitBtn.disabled = false;
+        chatInput.focus();
+      }
     };
 
+    // 登录状态监听
     supabase.auth.onAuthStateChange(async (event, session) => {
       currentUser = session?.user || null;
+      
       if (currentUser) {
         document.getElementById('navAuth').classList.add('hidden');
         document.getElementById('navUser').classList.remove('hidden');
+        
         const { data: profile } = await supabase.from('profiles').select('username').eq('id', currentUser.id).single();
         document.getElementById('displayUsername').textContent = profile?.username || '用户';
+        
         chatToggle.classList.remove('hidden');
         chatMessages.innerHTML = '';
-        supabase.from('messages').select('*').order('created_at', { ascending: true }).limit(50).then(({ data }) => {
-          if (data) data.forEach(appendMessage);
-        });
+        renderedMessageIds.clear();
+
+        // 拉取历史消息
+        const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: true }).limit(50);
+        if (data) data.forEach(appendMessage);
+
+        // 如果已经有 channel 了，先移除，防止重复订阅导致发两次
+        if (chatChannel) supabase.removeChannel(chatChannel);
+
+        // 重新订阅
+        chatChannel = supabase.channel('public:messages')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+            if (currentUser) appendMessage(payload.new);
+          })
+          .subscribe();
+
       } else {
         document.getElementById('navAuth').classList.remove('hidden');
         document.getElementById('navUser').classList.add('hidden');
         chatToggle.classList.add('hidden');
         chatWindow.classList.remove('active');
+        chatWindow.classList.remove('fullscreen');
         chatMessages.innerHTML = '';
+        renderedMessageIds.clear();
+
+        // 登出时断开连接
+        if (chatChannel) {
+          supabase.removeChannel(chatChannel);
+          chatChannel = null;
+        }
       }
     });
-
-    supabase.channel('public:messages').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-      if (currentUser) appendMessage(payload.new);
-    }).subscribe();
   </script>
 </body>
 </html>
